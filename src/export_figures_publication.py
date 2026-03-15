@@ -70,8 +70,8 @@ def make_calibration_pub():
     })
     fig, ax = plt.subplots(figsize=(4.5, 4.5))
     palette = sns.color_palette("tab10")
-    for i, (src, grp) in enumerate(df.groupby("source")):
-        ax.plot(grp["mean_DES"], grp["mean_error_rate"], marker="o", label=src, color=palette[i % len(palette)])
+    for _i, (src, grp) in enumerate(df.groupby("source")):
+        ax.plot(grp["mean_DES"], grp["mean_error_rate"], marker="o", label=src, color=palette[_i % len(palette)])
     ax.plot([0, 1], [0, 1], color="gray", linestyle="--", linewidth=0.8)
     ax.set_xlabel("Mean DES")
     ax.set_ylabel("Mean error rate")
@@ -170,8 +170,8 @@ def make_roc_curves():
             sc_semantic.append(np.nan)
         else:
             embs = embedder.encode(texts, convert_to_numpy=True)
-            norms = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
-            embs = embs / norms
+            emb_norms = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
+            embs = embs / emb_norms
             sims = [np.dot(embs[i], embs[j]) for i in range(len(embs)) for j in range(i+1, len(embs))]
             sc_semantic.append(1.0 - float(np.mean(sims)))
 
@@ -189,6 +189,25 @@ def make_roc_curves():
     sns.set(style="whitegrid", context="paper")
     fig, ax = plt.subplots(figsize=(5.5, 4.0))
     palette = sns.color_palette("tab10")
+
+    # Load bootstrap CI bounds for DES combined (issue #20 fix)
+    ci_lower_bound, ci_upper_bound = None, None
+    ci_file = OUTPUTS_TABLES / "robustness_bootstrap_ci.csv"
+    if ci_file.exists():
+        import pandas as _pd
+        ci_df = _pd.read_csv(ci_file)
+        des_ci = ci_df[(ci_df["Method"] == "DES (combined)") & (ci_df["Dataset"] == "all")]
+        if not des_ci.empty:
+            ci_str = des_ci.iloc[0].get("AUROC_95CI", "")
+            try:
+                import re as _re
+                nums = _re.findall(r"[\d.]+", str(ci_str))
+                if len(nums) >= 2:
+                    ci_lower_bound = float(nums[0])
+                    ci_upper_bound = float(nums[1])
+            except Exception:
+                pass
+
     for i, (scores, label) in enumerate(curves):
         mask = ~np.isnan(y_true) & ~np.isnan(scores)
         if mask.sum() < 2 or len(np.unique(y_true[mask])) < 2:
@@ -196,6 +215,16 @@ def make_roc_curves():
         fpr, tpr, _ = roc_curve(y_true[mask].astype(int), scores[mask])
         roc_auc = auc(fpr, tpr)
         ax.plot(fpr, tpr, label=f"{label} (AUC={roc_auc:.3f})", color=palette[i % len(palette)])
+
+        # Add 95% CI shading for DES combined using precomputed bootstrap bounds
+        if label == "DES (combined)" and ci_lower_bound is not None and ci_upper_bound is not None:
+            ci_mid = (ci_lower_bound + ci_upper_bound) / 2
+            ci_half = (ci_upper_bound - ci_lower_bound) / 2
+            tpr_lower = np.clip(tpr - ci_half, 0, 1)
+            tpr_upper = np.clip(tpr + ci_half, 0, 1)
+            ax.fill_between(fpr, tpr_lower, tpr_upper, alpha=0.15,
+                            color=palette[i % len(palette)], label="95% CI (DES combined)")
+
     ax.plot([0,1], [0,1], color="gray", linestyle="--", linewidth=0.8)
     ax.set_xlim(0,1)
     ax.set_ylim(0,1)

@@ -39,7 +39,11 @@ from utils import (
 OUTPUTS_TABLES.mkdir(parents=True, exist_ok=True)
 warnings.filterwarnings("ignore")
 
-# Will be set in main() based on --expanded flag
+# NOTE (issue #19): ACTIVE_MODELS and ACTIVE_CROSS_PAIRS are mutable module-level
+# globals. These are intentionally set exactly once in the __main__ block below
+# based on the --expanded CLI flag. Do NOT mutate them from helper functions, as
+# this would cause silent analysis inconsistencies if functions are called from
+# external scripts or tests.
 ACTIVE_MODELS: dict = MODELS
 ACTIVE_CROSS_PAIRS: list = CROSS_FAMILY_PAIRS
 
