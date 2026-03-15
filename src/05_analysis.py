@@ -29,7 +29,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from utils import (
     DATA_RESULTS, OUTPUTS_TABLES, MODELS, MODELS_ALL, FAMILY_MAP,
     normalize_answer, DES_ALPHA, DES_BETA,
-    get_embedder, strip_thinking_tags, extract_for_embedding,
+    get_embedder, strip_thinking_tags, extract_for_embedding, is_correct,
 )
 
 OUTPUTS_TABLES.mkdir(parents=True, exist_ok=True)

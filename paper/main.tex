@@ -83,10 +83,10 @@ A Cross-Architecture Empirical Study Across Diverse LLM Families}
   inference, requiring no model weights and no additional training.
   %
   DES achieves an area under the receiver operating characteristic curve of
-    		\textbf{0.9436} (bootstrap 95\% CI: [0.933, 0.953]) as a binary
+    		\textbf{0.9613} (bootstrap 95\% CI: [0.952, 0.969]) as a binary
   hallucination classifier;
   within-family model pairwise AUROC exceeds cross-family pairwise AUROC by
-  $\Delta$AUROC\textsubscript{pair} $\approx$ \textbf{0.128};
+  $\Delta$AUROC\textsubscript{pair} $\approx$ \textbf{0.122};
   and calibration quality varies significantly across knowledge domains.
   %
   These results establish DES as a practical, zero-cost hallucination signal
@@ -543,9 +543,9 @@ We proposed DES, a zero-cost hallucination detection signal derived from
 cross-model disagreement across $k=9$ models from eight distinct
 architectural families.
 On \emph{N}=2,017 factual questions, DES achieves AUROC of
-\textbf{0.9436} (bootstrap 95\% CI [0.933, 0.953]) as a binary
-hallucination classifier (ECE = \textbf{0.0274}),
-with within-family pairwise AUROC averaging $\approx 0.128$ points
+\textbf{0.9613} (bootstrap 95\% CI [0.952, 0.969]) as a binary
+hallucination classifier (ECE = \textbf{0.0541}),
+with within-family pairwise AUROC averaging $\approx 0.122$ points
 higher than cross-family pairwise AUROC across individual pairs.
 
 %% ¶2 — Broader impact
