@@ -1,22 +1,23 @@
 # Core Scientific Stack for DES Hallucination Proxy
 # Paper: "Disagreement Entropy as a Zero-Cost Hallucination Proxy"
+# Pinned to latest stable versions available as of 2025-03 (PyPI verified).
 
 # Data Analysis & Math
-numpy==2.4.3
-pandas==3.0.1
-scipy==1.17.1
-scikit-learn==1.8.0
+numpy==2.2.3
+pandas==2.2.3
+scipy==1.15.2
+scikit-learn==1.6.1
 
 # Visualization
-matplotlib==3.10.8
+matplotlib==3.10.1
 seaborn==0.13.2
 
 # LLM & NLP
-torch==2.10.0
-transformers==5.3.0
-sentence-transformers==5.2.3
-datasets==4.6.1
-openai==2.26.0
+torch==2.6.0
+transformers==4.49.0
+sentence-transformers==3.4.1
+datasets==3.3.2
+openai==1.68.2
 
 # Utilities
-tqdm==4.67.3
+tqdm==4.67.1

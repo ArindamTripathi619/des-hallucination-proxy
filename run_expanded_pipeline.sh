@@ -1,4 +1,4 @@
-`#!/usr/bin/env bash
+#!/usr/bin/env bash
 # run_expanded_pipeline.sh — Execute full pipeline with 9-model expanded data
 # Run AFTER 02c_add_models.py completes
 #

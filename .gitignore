@@ -10,6 +10,9 @@ data/results/*.log
 data/results/*_pre_*.jsonl
 # data/results/*.jsonl  <-- Removed to include results for proof
 
+# Auto-generated GitHub issue exports — tracked in des_audit_report.md instead
+DOCS/issues/issue_*.md
+
 # LaTeX build artifacts
 paper/*.aux
 paper/*.log
