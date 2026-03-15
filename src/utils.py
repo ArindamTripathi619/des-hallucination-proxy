@@ -51,8 +51,9 @@ MODELS_EXPANDED = {
     "deepseek-r1": "scw-deepseek-r1",    # DeepSeek R1 671B → family: deepseek
 }
 
-# Active model set — scripts use this as the authoritative model list.
-# After 02c_add_models.py, switch to MODELS_ALL for the expanded analysis.
+# MODELS = {**MODELS_ORIGINAL} is the default (6 models, original paper baseline).
+# Scripts that need all 9 models for the expanded analysis must use MODELS_ALL.
+# Most scripts accept --expanded flag which switches to MODELS_ALL at runtime.
 MODELS = {**MODELS_ORIGINAL}             # ← default: original 6
 
 MODELS_ALL = {**MODELS_ORIGINAL, **MODELS_EXPANDED}  # 9 models total
@@ -81,7 +82,11 @@ FAMILY_MAP = {
     "kimi":          "moonshot",
     # ── Expansion 3 ──
     "gemma":         "google",
-    "mistral":       "mistral",
+    "mistral":        "mistral",
+    # NOTE (issue #11): DeepSeek-R1 shows anomalously low MMLU accuracy (22.9%).
+    # This is most likely a response-format extraction failure, not a true capability
+    # collapse. The full pipeline owner should inspect raw DeepSeek MMLU responses
+    # and verify the normalize_answer() extraction path for this model.
     "deepseek-r1":   "deepseek",
 }
 
@@ -218,6 +223,30 @@ def extract_for_embedding(text: str, prefer_final: bool = True) -> str:
     return text.strip()
 
 
+# ─────────────────────────────────────────────────────────────────
+# Levenshtein Distance (issue #15: hoisted to module level)
+# Previously defined inside is_correct()'s inner loop, which caused
+# Python to recreate the function object on every call. Now defined
+# once here as a private helper.
+# ─────────────────────────────────────────────────────────────────
+def _levenshtein(s1: str, s2: str) -> int:
+    """Compute the edit distance between two strings (Wagner-Fischer)."""
+    if s1 == s2:
+        return 0
+    if len(s1) == 0:
+        return len(s2)
+    if len(s2) == 0:
+        return len(s1)
+    v0 = list(range(len(s2) + 1))
+    v1 = [0] * (len(s2) + 1)
+    for i in range(len(s1)):
+        v1[0] = i + 1
+        for j in range(len(s2)):
+            cost = 0 if s1[i] == s2[j] else 1
+            v1[j + 1] = min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost)
+        v0, v1 = v1, v0
+    return v0[len(s2)]
+
 def get_embedding_text_from_response(raw: str, question: dict | None = None, mc_embed_choices: bool = False, model_alias: str | None = None) -> str:
     """Return the text to be embedded for a given model response.
 
@@ -257,30 +286,9 @@ def get_embedding_text_from_response(raw: str, question: dict | None = None, mc_
     # fallback to final extraction if mapping failed
     return extract_for_embedding(raw, prefer_final=True)
 
-    # Model-specific post-processing: DeepSeek R1 often emits long CoT
-    # without consistent closing tags. Prefer the final answer and
-    # truncate overly long content before embedding to avoid semantic
-    # inflation from long reasoning text.
-    if model_alias == "deepseek-r1":
-        # If closed think block exists, prefer the post-think answer
-        if "<think>" in raw and "</think>" in raw:
-            after = raw.split("</think>")[-1].strip()
-            if after:
-                # truncate to last 200 chars to avoid huge CoT leakage
-                return after if len(after) <= 500 else after[-200:]
-        # If opening tag present but no closing tag, try last non-empty short line
-        if "<think>" in raw and "</think>" not in raw:
-            without_tag = re.sub(r'<think>\s*', '', raw, count=1).strip()
-            lines = [l.strip() for l in without_tag.splitlines() if l.strip()]
-            if lines:
-                last = lines[-1]
-                if len(last) < 500:
-                    return last
-            # As a fallback, return the last 200 chars of the cleaned content
-            return without_tag[-200:]
-
-    # Default: use final answer extraction (handles CoT outputs)
-    return extract_for_embedding(raw, prefer_final=True)
+    # NOTE (issue #10): The DeepSeek-R1 specific block that was here (L260-L283)
+    # was dead code — the early `return` above made it unreachable.
+    # The logic was also redundant with `extract_for_embedding()`. Removed.
 
 def normalize_answer(answer: str, question_type: str) -> str | None:
     """Normalize model response based on question type.
@@ -385,25 +393,7 @@ def is_correct(predicted: str, correct_answers: list, question_type: str, choice
             # Normalized edit (Levenshtein) distance threshold
             max_len = max(len(pred_norm), len(gt_norm))
             if max_len > 0:
-                # simple Levenshtein implementation
-                def levenshtein(s1, s2):
-                    if s1 == s2:
-                        return 0
-                    if len(s1) == 0:
-                        return len(s2)
-                    if len(s2) == 0:
-                        return len(s1)
-                    v0 = list(range(len(s2) + 1))
-                    v1 = [0] * (len(s2) + 1)
-                    for i in range(len(s1)):
-                        v1[0] = i + 1
-                        for j in range(len(s2)):
-                            cost = 0 if s1[i] == s2[j] else 1
-                            v1[j + 1] = min(v1[j] + 1, v0[j + 1] + 1, v0[j] + cost)
-                        v0, v1 = v1, v0
-                    return v0[len(s2)]
-
-                ed = levenshtein(pred_norm, gt_norm)
+                ed = _levenshtein(pred_norm, gt_norm)
                 if (ed / max_len) <= 0.2:
                     return True
         return False

@@ -75,8 +75,12 @@ def semantic_disagreement(pairs: list[tuple[str, str]], sem_cache: dict) -> floa
     
     distances = []
     for a, b in pairs:
+        # Issue #18 fix: null/empty responses are excluded from the semantic
+        # distance calculation. Assigning max distance (1.0) for null pairs
+        # conflates "failure to respond" with "maximum disagreement", which
+        # inflates DES scores for questions where a model simply errored out.
+        # This is consistent with surface_disagreement() which already skips nulls.
         if not a or not b:
-            distances.append(1.0) # Max disagree if missing
             continue
             
         emb_a = sem_cache.get(a)
@@ -84,7 +88,7 @@ def semantic_disagreement(pairs: list[tuple[str, str]], sem_cache: dict) -> floa
         
         distances.append(_cosine_dist(emb_a, emb_b))
         
-    return float(np.mean(distances))
+    return float(np.mean(distances)) if distances else 0.0
 
 
 # ─────────────────────────────────────────────────────────────────
