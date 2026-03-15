@@ -5,9 +5,9 @@ This document synthesizes the core scientific findings and proofs from the DES s
 ## 📊 Performance Proofs
 
 ### Result 1: Classification Superiority
-The fused ensemble (Surface + Semantic) achieved an **AUROC of 0.9436**, outperforming the standard SelfCheckGPT baseline.
+The fused ensemble (Surface + Semantic) achieved an **AUROC of 0.9613**, outperforming the standard SelfCheckGPT baseline.
 - **Standard SelfCheck**: ~0.86 AUROC
-- **Fused DES**: **~0.94 AUROC**
+- **Fused DES**: **~0.96 AUROC**
 
 ### Result 2: The Architecture Gap
 We analyzed "Within-Family" vs "Cross-Family" disagreement.

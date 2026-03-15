@@ -6,7 +6,7 @@ This repository contains the official implementation for the paper:
 The project investigates a black-box, training-free method for detecting hallucinations by querying an ensemble of structurally distinct Large Language Models (LLMs) and measuring their semantic and surface-level disagreement.
 
 ## 🚀 Key Achievements
-- **High Accuracy**: Achieved a binary classification **AUROC of 0.9436** using a fused 9-model ensemble.
+- **High Accuracy**: Achieved a binary classification **AUROC of 0.9613** using a fused 9-model ensemble.
 - **Zero-Cost**: Requires no access to model log-probabilities or heavy retrieval-augmented generation (RAG) infrastructure.
 - **Reasoning Boost**: Discovered that allowing models to "think" (Chain-of-Thought) increases the reliability of the disagreement signal by **~4%**.
 - **Architecture Insights**: Proved that architectural diversity is more critical than raw parameter count in detecting shared biases.

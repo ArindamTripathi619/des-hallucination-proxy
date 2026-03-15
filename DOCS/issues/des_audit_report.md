@@ -61,8 +61,7 @@ def get_embedding_text_from_response(raw, question=None, mc_embed_choices=False,
     return extract_for_embedding(raw, prefer_final=True)
 ```
 
-> [!CAUTION]
-> This bug affects ALL `semantic_DES` scores involving DeepSeek-R1. Since the paper reports AUROC = 0.9436 using all 9 models including DeepSeek-R1, the exact reproduced numbers may differ once this is fixed. Document this fix and re-run `03_scoring.py` + `04_calibration.py` before final paper submission.
+> This bug affects ALL `semantic_DES` scores involving DeepSeek-R1. Since the paper reports AUROC = 0.9613 using all 9 models including DeepSeek-R1, the exact reproduced numbers may differ once this is fixed. Document this fix and re-run `03_scoring.py` + `04_calibration.py` before final paper submission.
 
 ---
 
@@ -259,10 +258,10 @@ The output CSVs tell a coherent story and look internally consistent:
 
 | Metric | Value | Assessment |
 |---|---|---|
-| Full DES AUROC (9 models) | **0.9436** [0.933, 0.953] | Strong, narrow CI ✅ |
+| Full DES AUROC (9 models) | **0.9613** [0.952, 0.969] | Strong, narrow CI ✅ |
 | SelfCheckGPT surface baseline | 0.7992 | Reasonable baseline ✅ |
-| LOMO AUROC range (max–min) | 0.9515 − 0.9454 = **0.0061** | Exceptional stability ✅ |
-| ECE (all datasets) | 0.0274 | Well-calibrated ✅ |
+| LOMO AUROC range (max–min) | 0.9571 − 0.9449 = **0.0122** | Exceptional stability ✅ |
+| ECE (all datasets) | 0.0541 | Well-calibrated ✅ |
 | Pearson r (DES / error rate) | 0.683–0.808 | Strong linear correlation ✅ |
 | Qwen Think vs No-Think AUROC | 0.8794 vs 0.8407 | ~4% CoT gain, documented ✅ |
 | AUROC scaling law | Logarithmic (2→9 models) | Matches paper claim ✅ |
@@ -402,13 +401,12 @@ The abstract (L86) and conclusion (L544) both state:
 
 But `table3_classification_performance.csv` (the authoritative source) clearly shows:
 ```
-DES (combined), 0.9436, [0.933, 0.953]
+DES (combined), 0.9613, [0.952, 0.969]
 ```
 
-**Δ = 0.0036.** The value 0.9472 does **not exist** anywhere in the output CSVs. It is neither the full 9-model result (0.9436) nor any per-dataset variant. This is almost certainly a stale number from a mid-experiment run that was never updated after the final 9-model pipeline completed.
+**Δ = 0.0141.** The value 0.9472 does **not exist** anywhere in the output CSVs. It is neither the full 9-model result (0.9613) nor any per-dataset variant. This is almost certainly a stale number from a mid-experiment run that was never updated after the final 9-model pipeline completed.
 
-> [!CAUTION]
-> This is the headline metric of the paper. The title-claim AUROC **must be corrected to 0.9436** in the abstract, conclusion, and anywhere else it is cited. Peer reviewers cross-check the abstract against the results tables.
+> This is the headline metric of the paper. The title-claim AUROC **must be corrected to 0.9613** in the abstract, conclusion, and anywhere else it is cited. Peer reviewers cross-check the abstract against the results tables.
 
 ---
 
@@ -426,11 +424,10 @@ DES achieves AUROC of \textbf{0.9472} ... (ECE = 0.0587)
 | triviaqa | 0.0851 |
 | truthfulqa | 0.0397 |
 | mmlu | 0.0356 |
-| **all** | **0.0274** |
+| **all** | **0.0541** |
 
-The paper claims ECE = **0.0587**. The actual overall ECE is **0.0274** — more than 2× better than claimed. ECE=0.0587 does not appear in any output file. This is another stale number, likely from an earlier 6-model experiment.
+The paper claims ECE = **0.0587**. The actual overall ECE is **0.0541**. ECE=0.0587 does not appear in any output file. This is another stale number, likely from an earlier 6-model experiment.
 
-> [!CAUTION]
 > Ironically the real result is **better** than what the paper claims. Still must be corrected.
 
 ---
@@ -587,7 +584,7 @@ These are clearly development exploration scripts (no `argparse`, single-pass, d
 ### Priority Action Order for Camera-Ready Submission
 
 1. **Fix Bug #1** (`utils.py` dead code) → re-run `03_scoring.py --expanded` → re-run `04_calibration.py --expanded`
-2. **Update `main.tex`** with corrected AUROC (0.9436), ECE (0.0274), model table (+3 models), API call count (~18,400), and figure captions
+2. **Update `main.tex`** with corrected AUROC (0.9613), ECE (0.0541), model table (+3 models), API call count (~18,400), and figure captions
 3. **Run `simulate_improvements.py`** after fix to confirm AUROC delta from DeepSeek-R1 extraction improvement
 4. **Fix `requirements.txt`** — `pip freeze` from working Arch env
 5. **Fix shebang** in `run_expanded_pipeline.sh`
