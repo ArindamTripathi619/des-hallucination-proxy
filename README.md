@@ -85,3 +85,12 @@ For more detailed insights, please refer to the following:
 - [Development Log](./DOCS/HURDLES.md): Hurdles faced, historical context, and technical fixes.
 - [Empirical Results](./DOCS/RESULTS.md): Detailed analysis of discovery proofs and SWOT analysis.
 - [Model Ensemble](./DOCS/MODELS.md): Architectural details of the 9 models used.
+
+---
+
+## ⚖️ License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+### 🎓 Supervised By
+**Dr. Sushruta Mishra**, Asst. Prof. at KIIT University, Dept. of Computer Science.
