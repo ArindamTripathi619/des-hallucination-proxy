@@ -51,7 +51,13 @@ for a_mc, a_op in [(1.0, 0.2), (1.0, 0.3), (0.8, 0.2), (0.8, 0.3), (0.4, 0.4)]:
     auroc = roc_auc_score(all_y[v], all_des[v])
     print(f"  alpha_mc={a_mc:.1f} alpha_open={a_op:.1f}: AUROC={auroc:.4f}")
 
-print(f"\n  Current (uniform alpha=0.4): AUROC=0.9390")
+# Current uniform alpha=0.4 result (computed dynamically to avoid stale values):
+all_des_uniform = 0.4 * np.array([r["surface_DES"] for r in scored], dtype=float) + \
+                  0.6 * np.array([r["semantic_DES"] for r in scored], dtype=float)
+all_y_uniform = np.array([r["any_error"] for r in scored], dtype=float)
+v_u = ~np.isnan(all_y_uniform) & ~np.isnan(all_des_uniform)
+auroc_uniform = roc_auc_score(all_y_uniform[v_u], all_des_uniform[v_u])
+print(f"\n  Current (uniform alpha=0.4): AUROC={auroc_uniform:.4f}")
 
 # GPT-OSS null handling: what if we impute DES for null GPT-OSS pairs
 # instead of dropping them?

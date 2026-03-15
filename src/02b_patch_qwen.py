@@ -28,7 +28,7 @@ from openai import OpenAI
 
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 from utils import (
-    DATA_RESULTS, MODELS, QWEN_NO_THINK_SYSTEM,
+    DATA_RESULTS, LITELLM_BASE_URL, MODELS, QWEN_NO_THINK_SYSTEM,
     build_prompt, strip_thinking_tags,
 )
 
@@ -81,7 +81,8 @@ signal.signal(signal.SIGTERM, _signal_handler)
 # ─────────────────────────────────────────────────────────────────
 # Query helper
 # ─────────────────────────────────────────────────────────────────
-client = OpenAI(base_url="http://localhost:8000/v1", api_key="sk-local")
+# Issue #6 fix: use LITELLM_BASE_URL from utils instead of hardcoded localhost
+client = OpenAI(base_url=f"{LITELLM_BASE_URL}/v1", api_key="sk-local")
 
 
 def query_qwen(prompt: str, system_msg: str | None = None, model_tag: str = QWEN_MODEL_TAG) -> dict:
@@ -161,7 +162,8 @@ if __name__ == "__main__":
     # Identify truncated questions
     to_patch = []
     for i, rec in enumerate(records):
-        raw = rec["model_responses"]["qwen"]["response"] or ""
+        # Issue #5 fix: use .get() chain to avoid KeyError if qwen key is missing
+        raw = rec.get("model_responses", {}).get("qwen", {}).get("response") or ""
         if "<think>" in raw and "</think>" not in raw:
             to_patch.append(i)
 
@@ -180,6 +182,9 @@ if __name__ == "__main__":
     still_failed = 0
     api_calls = 0
     t_start = time.time()
+    # Issue #9 fix: initialise progress before loop to prevent UnboundLocalError
+    # if loop body never executes (e.g. empty to_patch or immediate SIGINT).
+    progress = -1
 
     for progress, idx in enumerate(to_patch):
         if shutdown_requested:

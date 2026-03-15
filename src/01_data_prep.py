@@ -94,6 +94,8 @@ def prepare_truthfulqa(output_file=None):
             correct_letter = letter_map[correct_idx] if correct_idx < 4 else None
 
             if correct_letter is None:
+                print(f"[WARN] TruthfulQA item {i}: correct answer index {correct_idx} "
+                      f"is outside first 4 choices — skipping record.")
                 continue  # Skip if correct answer outside first 4
 
             record = {
