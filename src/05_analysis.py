@@ -64,10 +64,8 @@ def build_table5(df: pd.DataFrame) -> pd.DataFrame:
             return np.nan
         correct_answers = row["correct_answers"]
         qtype = row["question_type"]
-        if qtype == "mc":
-            return float(norm == correct_answers[0].upper())
-        else:
-            return float(any(norm in a.lower() or a.lower() in norm for a in correct_answers))
+        # Standardized with canonical is_correct() (issue #L246 suggestion)
+        return float(is_correct(norm, correct_answers, qtype))
 
     df_sub["qwen_think_correct"]   = df_sub.apply(lambda r: _qwen_accuracy(r, "qwen"), axis=1)
     df_sub["qwen_nothink_correct"] = df_sub.apply(lambda r: _qwen_accuracy(r, "qwen-nothink"), axis=1)

@@ -24,11 +24,10 @@ OUTPUTS_TABLES = PROJECT_ROOT / "outputs" / "tables"
 # ─────────────────────────────────────────────────────────────────
 SEED = 42
 
-# ─────────────────────────────────────────────────────────────────
 # LiteLLM Rotator Endpoint (local proxy)
 # ─────────────────────────────────────────────────────────────────
-LITELLM_BASE_URL = "http://localhost:8000/v1"
-LITELLM_API_KEY  = "sk-local"          # Any dummy value works
+LITELLM_BASE_URL = os.environ.get("LITELLM_BASE_URL", "http://localhost:8000/v1")
+LITELLM_API_KEY  = os.environ.get("LITELLM_API_KEY", "sk-local")
 
 # ─────────────────────────────────────────────────────────────────
 # Original 6-Model Lineup (baseline experiment)

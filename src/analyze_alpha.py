@@ -1,5 +1,11 @@
 """
 analyze_alpha.py — Alpha sweep per question type + type-adaptive alpha
+
+NOTE: Pure semantic DES (alpha=0.0) often shows weak AUROC (~0.52) in this sweep.
+This is likely due to semantic entropy on short answers (1-3 words) where the 
+All-MiniLM-L6-v2 model fails to capture fine-grained semantic distinctions,
+leading to compressed distance distributions. The fused DES (alpha=0.4)
+outperforms components by capturing both lexical and distributed signal.
 """
 import json, sys, numpy as np, pathlib
 from sklearn.metrics import roc_auc_score

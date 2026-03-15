@@ -47,6 +47,34 @@ warnings.filterwarnings("ignore")
 ACTIVE_MODELS: dict = MODELS
 ACTIVE_CROSS_PAIRS: list = CROSS_FAMILY_PAIRS
 
+# ─────────────────────────────────────────────────────────────────
+# Global Semantic Cache (issue #23 performance optimization)
+# ─────────────────────────────────────────────────────────────────
+SEM_CACHE: dict[str, np.ndarray] = {}
+
+def populate_semantic_cache(df: pd.DataFrame):
+    """Pre-compute all embeddings for active models to avoid re-encoding in loops."""
+    global SEM_CACHE
+    print("  Pre-populating semantic cache for analysis functions...")
+    unique_texts = set()
+    for _, row in df.iterrows():
+        for m in ACTIVE_MODELS:
+            resp = row["model_responses"].get(m, {}).get("response")
+            if resp:
+                cleaned = extract_for_embedding(resp)
+                if cleaned:
+                    unique_texts.add(cleaned)
+    if not unique_texts:
+        return
+    
+    embedder = get_embedder()
+    texts = list(unique_texts)
+    # Batch encode is much faster than per-row encode
+    embs = embedder.encode(texts, convert_to_numpy=True, batch_size=64, show_progress_bar=True)
+    for t, e in zip(texts, embs):
+        SEM_CACHE[t] = e
+    print(f"  Cache populated with {len(SEM_CACHE)} embeddings.")
+
 
 # ─────────────────────────────────────────────────────────────────
 # Load scored data
@@ -209,9 +237,6 @@ def alpha_sensitivity_analysis(df: pd.DataFrame) -> pd.DataFrame:
 # ─────────────────────────────────────────────────────────────────
 # Table 3 — Classification performance (DES variants vs. SelfCheck baseline)
 # ─────────────────────────────────────────────────────────────────
-# ─────────────────────────────────────────────────────────────────
-# Table 3 — Classification performance (DES variants vs. SelfCheck baseline)
-# ─────────────────────────────────────────────────────────────────
 def selfcheck_baseline_surface(df: pd.DataFrame) -> pd.Series:
     """Simulate SelfCheckGPT: use 3 Llama variants as 'stochastic samples' (surface)."""
     def _sc_score(row):
@@ -232,19 +257,28 @@ def selfcheck_baseline_surface(df: pd.DataFrame) -> pd.Series:
 
 def selfcheck_baseline_semantic(df: pd.DataFrame) -> pd.Series:
     """Simulate SelfCheckGPT: use 3 Llama variants as 'stochastic samples' (semantic)."""
-    emb = get_embedder()
     def _sc_score(row):
         llama_models = ["llama-large", "llama-small", "llama4-scout"]
-        answers = [
-            row["model_responses"].get(m, {}).get("response")
-            for m in llama_models
-        ]
-        # Use extract_for_embedding to handle think tags properly
-        answers = [extract_for_embedding(a) for a in answers if a]
-        answers = [a for a in answers if a]
+        answers = []
+        for m in llama_models:
+            resp = row["model_responses"].get(m, {}).get("response")
+            if resp:
+                cleaned = extract_for_embedding(resp)
+                if cleaned:
+                    answers.append(cleaned)
         if len(answers) < 2:
             return np.nan
-        embeddings = emb.encode(answers, convert_to_numpy=True)
+        
+        # Use SEM_CACHE instead of re-encoding (issue #23)
+        embeddings = []
+        for a in answers:
+            if a in SEM_CACHE:
+                embeddings.append(SEM_CACHE[a])
+        
+        if len(embeddings) < 2:
+            return np.nan
+        
+        embeddings = np.array(embeddings)
         norms = np.linalg.norm(embeddings, axis=1, keepdims=True) + 1e-12
         embeddings = embeddings / norms
         pairs = list(combinations(range(len(embeddings)), 2))
@@ -270,20 +304,26 @@ def build_table3(df: pd.DataFrame) -> pd.DataFrame:
 
 def pair_semantic_DES(row: dict, pair: tuple[str, str]) -> float | None:
     """Compute semantic distance between a pair of model responses."""
-    emb = get_embedder()
     r1 = row["model_responses"].get(pair[0], {}).get("response")
     r2 = row["model_responses"].get(pair[1], {}).get("response")
     if not r1 or not r2:
         return None
     # Use extract_for_embedding to handle think tags properly
-    r1 = extract_for_embedding(r1)
-    r2 = extract_for_embedding(r2)
-    if not r1 or not r2:
+    t1 = extract_for_embedding(r1)
+    t2 = extract_for_embedding(r2)
+    if not t1 or not t2:
         return None
-    embeddings = emb.encode([r1, r2], convert_to_numpy=True)
-    norms = np.linalg.norm(embeddings, axis=1) + 1e-12
-    cos_sim = np.dot(embeddings[0] / norms[0], embeddings[1] / norms[1])
-    return float(1.0 - cos_sim)
+        
+    # Use SEM_CACHE (issue #23)
+    emb1 = SEM_CACHE.get(t1)
+    emb2 = SEM_CACHE.get(t2)
+    if emb1 is None or emb2 is None:
+        return None
+        
+    emb1 = emb1 / (np.linalg.norm(emb1) + 1e-12)
+    emb2 = emb2 / (np.linalg.norm(emb2) + 1e-12)
+    sim = np.dot(emb1, emb2)
+    return float(1.0 - sim)
 
 
 def build_table4(df: pd.DataFrame) -> pd.DataFrame:
@@ -356,6 +396,9 @@ if __name__ == "__main__":
     print("Loading scored results...")
     df = load_scored_df(scored_file)
     print(f"  Loaded {len(df)} records.")
+
+    # Pre-populate cache for semantic analysis (issue #23 performance fix)
+    populate_semantic_cache(df)
 
     # --- Table 1 ---
     print("Building Table 1: Model accuracy...")

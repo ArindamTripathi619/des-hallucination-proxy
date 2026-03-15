@@ -162,6 +162,29 @@ def build_mcnemar_table(df: pd.DataFrame) -> pd.DataFrame:
 
 
 # ─────────────────────────────────────────────────────────────────
+# Semantic Caching (issue #23 performance optimization)
+# ─────────────────────────────────────────────────────────────────
+def precompute_embeddings(df: pd.DataFrame, embedder, model_set: dict) -> dict[str, np.ndarray]:
+    """Pre-encode all response texts in bulk to avoid per-row overhead."""
+    unique_texts = set()
+    for _, row in df.iterrows():
+        model_responses = row.get("model_responses", {})
+        for m in model_set:
+            resp = model_responses.get(m, {})
+            raw = resp.get("response")
+            if raw:
+                et = extract_for_embedding(raw)
+                if et:
+                    unique_texts.add(et)
+    if not unique_texts:
+        return {}
+    
+    texts = list(unique_texts)
+    embs = embedder.encode(texts, convert_to_numpy=True, batch_size=64)
+    return {t: e for t, e in zip(texts, embs)}
+
+
+# ─────────────────────────────────────────────────────────────────
 # 3. Leave-One-Model-Out (LOMO) Stability
 # ─────────────────────────────────────────────────────────────────
 def lomo_analysis(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
@@ -180,6 +203,8 @@ def lomo_analysis(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
 
     all_models = list(model_set.keys())
     embedder = get_embedder()
+    # Pre-compute all embeddings once for the default embedder (issue #23)
+    emb_cache = precompute_embeddings(df_raw, embedder, model_set)
     rows = []
 
     for drop_model in all_models:
@@ -193,15 +218,15 @@ def lomo_analysis(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
 
             # Normalize answers for remaining models
             norm_answers = {}
-            embed_texts = []
+            embeddings = []
             for m in remaining:
                 resp = model_responses.get(m, {})
                 raw = resp.get("response")
                 if raw:
                     norm_answers[m] = normalize_answer(raw, qtype)
                     et = extract_for_embedding(raw)
-                    if et:
-                        embed_texts.append(et)
+                    if et and et in emb_cache:
+                        embeddings.append(emb_cache[et])
 
             # Surface disagreement
             valid_norms = [v for v in norm_answers.values() if v is not None]
@@ -211,9 +236,9 @@ def lomo_analysis(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
                 pairs = list(combinations(valid_norms, 2))
                 surf = sum(1 for a, b in pairs if a != b) / len(pairs)
 
-                # Semantic disagreement
-                if len(embed_texts) >= 2:
-                    embs = embedder.encode(embed_texts, convert_to_numpy=True)
+                # Semantic disagreement (use cached embeddings)
+                if len(embeddings) >= 2:
+                    embs = np.array(embeddings)
                     norms_v = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
                     embs = embs / norms_v
                     p = list(combinations(range(len(embs)), 2))
@@ -274,6 +299,8 @@ def embedding_ablation(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
     for emb_name in EMBEDDING_MODELS:
         print(f"  Embedding ablation: {emb_name}...")
         embedder = get_embedder(emb_name)
+        # Pre-compute all embeddings for THIS embedder (issue #23)
+        emb_cache = precompute_embeddings(df_raw, embedder, model_set)
 
         scores = []
         y_true_list = []
@@ -284,7 +311,7 @@ def embedding_ablation(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
             correct_answers = rec.get("correct_answers", [])
 
             norm_answers = {}
-            embed_texts = []
+            embeddings = []
 
             for m in all_models:
                 resp = model_responses.get(m, {})
@@ -292,8 +319,8 @@ def embedding_ablation(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
                 if raw:
                     norm_answers[m] = normalize_answer(raw, qtype)
                     et = extract_for_embedding(raw)
-                    if et:
-                        embed_texts.append(et)
+                    if et and et in emb_cache:
+                        embeddings.append(emb_cache[et])
 
             valid_norms = [v for v in norm_answers.values() if v is not None]
             if len(valid_norms) < 2:
@@ -305,9 +332,9 @@ def embedding_ablation(df_raw: pd.DataFrame, model_set: dict) -> pd.DataFrame:
             pairs = list(combinations(valid_norms, 2))
             surf = sum(1 for a, b in pairs if a != b) / len(pairs)
 
-            # Semantic with THIS embedder
-            if len(embed_texts) >= 2:
-                embs = embedder.encode(embed_texts, convert_to_numpy=True)
+            # Semantic with THIS cached embedder
+            if len(embeddings) >= 2:
+                embs = np.array(embeddings)
                 norms_v = np.linalg.norm(embs, axis=1, keepdims=True) + 1e-12
                 embs = embs / norms_v
                 p = list(combinations(range(len(embs)), 2))
