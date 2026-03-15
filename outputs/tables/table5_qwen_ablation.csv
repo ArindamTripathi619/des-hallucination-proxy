@@ -1,0 +1,2 @@
+Condition,N,Qwen_Accuracy_%,AUROC_with_Qwen_think,AUROC_with_Qwen_nothink
+Qwen thinking ON (default),200,69.0,0.8794,0.8407

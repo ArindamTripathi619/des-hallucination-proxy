@@ -1,0 +1,10 @@
+Dropped_Model,Dropped_Family,Remaining_Models,AUROC
+llama-large,meta,8,0.9499
+llama-small,meta,8,0.9515
+llama4-scout,meta-next-gen,8,0.9499
+gpt-oss-large,microsoft-oss,8,0.9461
+qwen,alibaba,8,0.9454
+kimi,moonshot,8,0.9468
+gemma,google,8,0.9478
+mistral,mistral,8,0.9473
+deepseek-r1,deepseek,8,0.9467

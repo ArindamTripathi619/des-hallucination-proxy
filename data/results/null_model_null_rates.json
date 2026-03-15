@@ -1,0 +1,25 @@
+{
+  "total_records": 2017,
+  "null_counts": {
+    "llama-large": 0,
+    "llama-small": 0,
+    "llama4-scout": 0,
+    "gpt-oss-large": 517,
+    "qwen": 0,
+    "kimi": 0,
+    "gemma": 0,
+    "mistral": 0,
+    "deepseek-r1": 0
+  },
+  "null_rates": {
+    "llama-large": 0.0,
+    "llama-small": 0.0,
+    "llama4-scout": 0.0,
+    "gpt-oss-large": 0.25632126921170056,
+    "qwen": 0.0,
+    "kimi": 0.0,
+    "gemma": 0.0,
+    "mistral": 0.0,
+    "deepseek-r1": 0.0
+  }
+}

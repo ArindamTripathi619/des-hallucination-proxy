@@ -1,0 +1,4 @@
+Embedding_Model,AUROC,CI_lower,CI_upper,N_valid
+all-MiniLM-L6-v2,0.9472,0.937,0.9571,2017
+all-mpnet-base-v2,0.9398,0.9285,0.9511,2017
+intfloat/e5-large-v2,0.9223,0.909,0.9357,2017

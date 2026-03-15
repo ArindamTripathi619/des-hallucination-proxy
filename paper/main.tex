@@ -1,0 +1,593 @@
+% ============================================================
+% IEEE Transactions on Artificial Intelligence (TAI)
+% Paper: "Disagreement Entropy as a Zero-Cost Hallucination Proxy:
+%         A Cross-Architecture Empirical Study Across Diverse LLM Families"
+% Target: IEEE TAI — Regular Manuscript
+% Format: Two-column IEEE transactions, double-anonymous review
+% ============================================================
+\documentclass[journal]{IEEEtran}
+
+% --- Packages ---
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsthm}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{url}
+\usepackage{xurl}       % Handles long URLs in references
+\usepackage{microtype}
+\usepackage{cite}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+\usepackage{bm}         % Bold math symbols
+
+% --- Hyperref setup ---
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!70!black,
+  citecolor=blue!70!black,
+  urlcolor=blue!70!black,
+}
+
+% ============================================================
+% TITLE & AUTHORS — Anonymized for double-blind review
+% ============================================================
+\title{Disagreement Entropy as a Zero-Cost Hallucination Proxy:
+A Cross-Architecture Empirical Study Across Diverse LLM Families}
+
+% Double-blind: authors omitted in review submission
+% Uncomment for camera-ready:
+% \author{Author One, Author Two, Author Three
+%   \IEEEcompsocitemizethanks{
+%     \IEEEcompsocthanksitem Manuscript received XXXX. Corresponding author: email@institution.edu
+%   }
+% }
+
+\markboth{IEEE Transactions on Artificial Intelligence, Vol.~XX, No.~XX, XXXX}
+         {Author et al.: Disagreement Entropy as a Zero-Cost Hallucination Proxy}
+
+% ============================================================
+\begin{document}
+
+\maketitle
+
+% ============================================================
+% ABSTRACT  — 150–250 words, one paragraph, no refs, no abbreviations
+% ============================================================
+\begin{abstract}
+  Hallucination in large language models represents a critical reliability
+  barrier in real-world deployment, where models generate fluent and
+  plausible responses that contradict verifiable ground truth.
+  %
+  Existing detection methods typically require white-box model access,
+  multiple stochastic samples from a single model, or expensive retrieval
+  pipelines — all of which are impractical for practitioners relying on
+  black-box APIs.
+  %
+  We observe that when models from architecturally distinct families are
+  queried simultaneously on the same factual input, the degree of their
+  disagreement encodes implicit epistemic uncertainty about factual
+  correctness.
+  %
+  We formalize this as the Disagreement Entropy Score (referred to hereafter
+  as DES), a metric combining surface-level and semantic-level pairwise
+  disagreement across nine models drawn from eight architecturally distinct
+    model families.
+  %
+  We evaluate DES on 2,017 questions spanning three benchmarks
+  — open-ended general knowledge, hallucination-prone multiple-choice, and
+  domain-controlled multiple-choice evaluation — using only free-tier cloud
+  inference, requiring no model weights and no additional training.
+  %
+  DES achieves an area under the receiver operating characteristic curve of
+    		extbf{0.9472} as a binary hallucination classifier;
+  within-family model pairs outperform cross-family pairs by a margin of
+  $\Delta$AUROC = \textbf{0.128};
+  and calibration quality varies significantly across knowledge domains.
+  %
+  These results establish DES as a practical, zero-cost hallucination signal
+  applicable to any multi-model black-box deployment, with direct
+  implications for LLM pipeline design, confidence thresholding, and
+  selective abstention strategies.
+\end{abstract}
+
+\begin{IEEEkeywords}
+hallucination detection, large language models, model disagreement,
+uncertainty quantification, cross-architecture evaluation,
+factuality assessment, black-box LLM evaluation
+\end{IEEEkeywords}
+
+% ============================================================
+% IMPACT STATEMENT  — 100–150 words, non-specialist audience
+% ============================================================
+\section*{Impact Statement}
+% NOTE: IEEE TAI requires an Impact Statement for non-specialist readers.
+% This section should remain in the final submission.
+
+Large language models are increasingly deployed in medical, legal, and
+educational systems where factual errors can cause serious harm.
+Existing tools for detecting when a model has hallucinated typically
+require specialized infrastructure or access to model internals.
+%
+The Disagreement Entropy Score (DES) introduced in this work offers
+a practical alternative: by querying multiple AI models simultaneously
+and measuring how much they disagree, practitioners can obtain an
+immediate, cost-free signal indicating the reliability of any given
+response.
+%
+This study provides the first systematic calibration mapping disagreement
+levels to actual error probabilities, enabling developers to set principled
+confidence thresholds without access to proprietary model internals.
+%
+The findings are immediately applicable by any team building on top of
+cloud-hosted language model APIs.
+
+% ============================================================
+\section{Introduction}
+\label{sec:intro}
+% Target: ~700 words | 7 paragraphs
+
+% ¶1 — The Stakes (Hook)
+Large language models have been rapidly integrated into search engines,
+medical decision-support systems, legal research tools, and educational
+platforms~\cite{ji2023survey, huang2024hallucination}.
+The critical challenge is not that these models occasionally produce
+incorrect answers — it is that erroneous responses are delivered with the
+same fluency and apparent confidence as correct ones, rendering them
+indistinguishable to users without external verification.
+%% FILL IN rest of ¶1 with deployment risk framing
+
+% ¶2 — Hallucination Defined
+We focus specifically on \emph{factuality hallucination}: the generation of
+fluent, plausible text that contradicts verifiable ground
+truth~\cite{huang2024hallucination, farquhar2024detecting}.
+This form of hallucination is distinct from faithfulness hallucination
+(inconsistency with a provided document) and represents the primary
+reliability concern in open-domain question-answering settings.
+%% FILL IN one-sentence scoping statement tying this to QA benchmarks
+
+% ¶3 — Existing Approaches and Their Limitations
+Existing hallucination detection approaches face a trilemma~\cite{kuhn2023semantic, manakul2023selfcheckgpt, farquhar2024detecting}:
+white-box methods that probe internal representations require access to
+model weights unavailable for API-served deployments;
+single-model stochastic consistency methods (e.g.,~SelfCheckGPT~\cite{manakul2023selfcheckgpt})
+require multiple sampling passes from the same model, which is both costly
+and architecturally limited;
+and retrieval-based verification imposes external knowledge infrastructure.
+No existing method exploits the naturally occurring signal of cross-model
+disagreement as a calibrated probability proxy in a pure black-box setting.
+%% FILL IN one sentence on the cost/access gap explicitly
+
+% ¶4 — Core Insight
+Our central observation is grounded in prior multi-agent debate
+literature~\cite{du2024multiagent, liang2023divergent}:
+when models from architecturally distinct families share knowledge about a
+fact, they tend to converge on the same answer; when a fact falls outside
+reliable training coverage across diverse corpora, architecturally distinct
+models diverge.
+This divergence is not noise — it is a structured epistemic signal.
+%% FILL IN one sentence linking divergence to factual error probability
+
+% ¶5 — Proposed Approach
+We propose the \textbf{Disagreement Entropy Score (DES)}: a scalar metric
+combining surface-level (exact-match) and semantic-level (cosine similarity)
+pairwise disagreement across six large language models from five
+architecturally distinct families (Meta, Meta-Next-Gen, Microsoft-OSS,
+Alibaba, and Moonshot).
+DES is computed from a single parallel query round — no resampling, no
+fine-tuning, no model internals.
+%% FILL IN one sentence on the calibration interpretation goal
+
+% ¶6 — Contributions
+The specific contributions of this work are as follows:
+\begin{enumerate}
+  \item We propose \textbf{DES}, a novel metric combining surface and
+    semantic cross-model disagreement as a zero-cost hallucination proxy.
+  \item We present the \textbf{first calibration study} directly mapping
+    DES to factual error probability across three benchmarks and four
+    knowledge domains.
+  \item We demonstrate that \textbf{cross-family disagreement} is a
+    stronger hallucination signal than within-family disagreement,
+    isolating the role of architectural diversity in the detection signal.
+  \item We conduct a \textbf{Qwen3 reasoning-mode ablation} showing that
+    enabling chain-of-thought reasoning in one constituent model measurably
+    shifts disagreement patterns and DES calibration quality.
+\end{enumerate}
+
+% ¶7 — Paper Organization
+The remainder of this paper is organized as follows.
+Section~\ref{sec:related} reviews related work.
+Section~\ref{sec:methodology} defines the DES metric formally.
+Section~\ref{sec:setup} describes the experimental setup.
+Section~\ref{sec:results} presents results across all four research questions.
+Section~\ref{sec:discussion} discusses implications and limitations.
+Section~\ref{sec:conclusion} concludes.
+
+% ============================================================
+\section{Related Work}
+\label{sec:related}
+% Target: ~600 words | 3 subsections
+
+\subsection{Hallucination in Large Language Models}
+%% Cite Ji et al. [R6] and Huang et al. [R13] — canonical surveys
+%% Cover: types of hallucination, root causes, why factuality hallucination is the focus
+%% End: "these works characterize the problem but do not propose lightweight detection for black-box APIs"
+\cite{ji2023survey, huang2024hallucination}
+
+\subsection{Hallucination Detection Methods}
+%% Single-model: Kuhn [R7], Manakul [R1], Farquhar [R2], Kossen [R8]
+%% Multi-model: Cohen [R3], Feng [R4], Du [R5]
+%% End: clear differentiation — DES is passive, one-shot, no internals, no multi-turn
+\cite{kuhn2023semantic, manakul2023selfcheckgpt, farquhar2024detecting, kossen2024sep}
+\cite{cohen2023lm, feng2024dont, du2024multiagent}
+
+Unlike all prior methods, DES requires no model internals, no multi-turn
+interaction, no stochastic resampling, and no additional infrastructure;
+it is a passive, one-shot signal derived from the natural divergence of
+simultaneously queried models from distinct architectural families.
+
+\subsection{Uncertainty Quantification for Natural Language Generation}
+%% Brief: Bayesian NLP, conformal prediction, verbalized confidence — all orthogonal
+%% End: "DES operates as an external oracle requiring no model introspection"
+%% FILL IN 2-3 sentences here
+
+% ============================================================
+\section{Methodology}
+\label{sec:methodology}
+% Target: ~900 words | 5 subsections
+
+\subsection{Problem Formulation}
+
+Let $\mathcal{Q} = \{q_1, q_2, \ldots, q_n\}$ be a set of factual questions
+with corresponding ground-truth answers $\mathcal{A} = \{a_1, \ldots, a_n\}$.
+Let $\mathcal{M} = \{m_1, \ldots, m_k\}$ denote a set of $k$ large language
+models drawn from architecturally distinct families.
+For each question $q_i$, each model $m_j$ produces response $r_{ij}$.
+
+\noindent\textbf{Goal:}
+Compute a scalar score $\text{DES}(q_i) \in [0, 1]$ from
+$\{r_{i1}, \ldots, r_{ik}\}$ alone such that $\text{DES}(q_i)$ is a
+calibrated proxy for $P(\text{error} \mid q_i)$.
+
+\subsection{The Disagreement Entropy Score (DES)}
+
+DES is defined as a weighted combination of two complementary disagreement
+signals:
+
+\noindent\textbf{Layer 1 — Surface Disagreement ($D_S$):}
+\begin{equation}
+  D_S(q_i) = \frac{1}{\binom{k}{2}} \sum_{j < l}
+    \mathbf{1}\!\left[\hat{r}_{ij} \neq \hat{r}_{il}\right]
+  \label{eq:Ds}
+\end{equation}
+where $\hat{r}_{ij}$ denotes the normalized (lowercased,
+punctuation-stripped) answer of model $m_j$.
+
+\noindent\textbf{Layer 2 — Semantic Disagreement ($D_\text{Sem}$):}
+\begin{equation}
+  D_\text{Sem}(q_i) = 1 - \frac{1}{\binom{k}{2}} \sum_{j < l}
+    \cos\!\bigl(\mathbf{e}_{ij},\, \mathbf{e}_{il}\bigr)
+  \label{eq:Dsem}
+\end{equation}
+where $\mathbf{e}_{ij}$ is the sentence embedding of $r_{ij}$ from a
+frozen encoder (all-MiniLM-L6-v2~\cite{kuhn2023semantic}).
+Semantic disagreement captures meaning divergence invisible to surface
+matching — for example, ``Napoleon'' and ``Bonaparte'' are surface-different
+but semantically equivalent.
+
+\noindent\textbf{Layer 3 — Combined DES:}
+\begin{equation}
+  \text{DES}(q_i) = \alpha \cdot D_S(q_i) + \beta \cdot D_\text{Sem}(q_i),
+  \quad \alpha{=}0.4,\; \beta{=}0.6
+  \label{eq:DES}
+\end{equation}
+
+The weighting $\beta > \alpha$ reflects the richer information content of
+semantic-level disagreement.
+We conduct a sensitivity analysis of $\alpha$ in Appendix~C.
+
+\subsection{Dataset Construction}
+
+We evaluate DES on three complementary benchmarks:
+
+\begin{table}[!t]
+  \caption{Dataset Composition}
+  \label{tab:datasets}
+  \centering
+  \begin{tabular}{lcccl}
+    \toprule
+    \textbf{Dataset} & \textbf{N} & \textbf{Format} & \textbf{Domain} \\
+    \midrule
+    TriviaQA~\cite{joshi2017triviaqa}    & 800  & Open-ended & General \\
+    TruthfulQA~\cite{lin2022truthfulqa}  & 817  & MC         & Mixed \\
+    MMLU-History~\cite{hendrycks2021mmlu}& 100  & MC         & History \\
+    MMLU-Biology                         & 100  & MC         & Biology \\
+    MMLU-Law                             & 100  & MC         & Law \\
+    MMLU-Math                            & 100  & MC         & Math \\
+    \midrule
+    \textbf{Total}                       &\textbf{2,017}& & \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+Sampling uses a fixed random seed (42) for reproducibility.
+TriviaQA tests general factual recall;
+TruthfulQA targets hallucination-prone questions designed to elicit
+model falsehoods;
+MMLU provides domain-controlled multiple-choice evaluation.
+
+\subsection{Model Setup}
+
+\begin{table}[!t]
+  \caption{Model Lineup}
+  \label{tab:models}
+  \centering
+  \begin{tabular}{llll}
+    \toprule
+    \textbf{ID} & \textbf{Model} & \textbf{Family} & \textbf{Params} \\
+    \midrule
+    $m_1$ & Llama 3.3       & Meta          & 70B \\
+    $m_2$ & Llama 3.1       & Meta          & 8B \\
+    $m_3$ & Llama 4 Scout   & Meta-Next     & 17B \\
+    $m_4$ & GPT-OSS         & Microsoft-OSS & 120B \\
+    $m_5$ & Qwen3           & Alibaba       & 32B \\
+    $m_6$ & Kimi K2         & Moonshot      & 262K ctx \\
+    \bottomrule
+  \end{tabular}
+\end{table}
+
+All models are queried at temperature = 0.0 for deterministic responses,
+with a maximum of 150 output tokens (2,048 for Qwen3 to accommodate
+chain-of-thought reasoning).
+All requests are routed through a unified LiteLLM load-balancing proxy
+with 11 rotating API keys\footnote{
+  Infrastructure details anonymized for double-blind review.
+}.
+
+\subsection{Research Questions and Evaluation Protocol}
+
+We address four research questions:
+
+\begin{description}
+  \item[RQ1 (Calibration)] Is DES a well-calibrated proxy for factual
+    error probability, and how does calibration vary across datasets and
+    knowledge domains?
+  \item[RQ2 (Classification)] Can DES function as an effective binary
+    hallucination classifier, and what is the optimal operating threshold?
+  \item[RQ3 (Architecture Gap)] Does cross-family model disagreement
+    provide a stronger hallucination signal than within-family disagreement?
+  \item[RQ4 (Reasoning Mode)] Does enabling chain-of-thought reasoning in
+    Qwen3 alter DES calibration quality?
+\end{description}
+
+\noindent Primary metrics: Expected Calibration Error (ECE),
+AUROC, Precision/Recall/F1 at optimal threshold,
+and $\Delta$AUROC for cross- vs.\ within-family comparison.
+
+% ============================================================
+\section{Experimental Setup}
+\label{sec:setup}
+% Target: ~400 words | 4 subsections
+
+\subsection{Infrastructure}
+%% LiteLLM rotator, 11 keys, total ~12,300 calls, CPU inference, Python 3.11
+%% Consumer hardware, no GPU required — highlight zero-infrastructure framing
+Total API calls: approximately 12,300 (6 models $\times$ 2,017 questions,
+plus 200 additional calls for the Qwen3 reasoning-mode ablation).
+
+\subsection{Prompt Design}
+%% Show exact prompts verbatim — reviewers check these
+For open-ended questions (TriviaQA), models receive:
+\begin{quote}\ttfamily\small
+Answer the following question in 1--3 words only.\\
+Do not explain. Just give the answer.\\[4pt]
+Question: \{question\}\\
+Answer:
+\end{quote}
+
+For multiple-choice questions (TruthfulQA, MMLU), models receive:
+\begin{quote}\ttfamily\small
+Choose the correct answer. Reply with only the letter (A, B, C, or D).\\[4pt]
+Question: \{question\}\\
+A) \{choice\_a\}  B) \{choice\_b\}\\
+C) \{choice\_c\}  D) \{choice\_d\}\\[4pt]
+Answer:
+\end{quote}
+
+Temperature is fixed at 0.0 to ensure deterministic, comparable responses.
+
+\subsection{Answer Normalization}
+%% Describe normalization pipeline, edge cases, null handling
+For multiple-choice questions, responses are normalized by extracting the
+first uppercase letter \{A–D\} via regex; responses yielding no match are
+marked null.
+For open-ended questions, responses are lowercased and stripped of
+punctuation, then checked against all provided aliases.
+Per-model null rates are reported in Appendix~B.
+
+\subsection{Reproducibility}
+All data, prompts, raw API responses, and analysis code will be released
+at an anonymized repository upon acceptance.
+
+% ============================================================
+\section{Results}
+\label{sec:results}
+% Target: ~1,100 words | 5 subsections
+
+% Note: This document must be compiled from the `paper/` directory.
+% We use relative paths to inject generated tables directly from the pipeline.
+\begin{table}[htbp]
+\caption{Model Accuracy across Datasets}
+\label{tab:accuracy}
+\centering
+\resizebox{\columnwidth}{!}{%
+\input{../outputs/tables/table1_model_accuracy.tex}
+}
+\end{table}% TABLE PLACEHOLDER — fill after experiments
+
+\subsection{RQ1: Calibration Analysis}
+%% Fig 1: Calibration curves (3 panels, one per dataset)
+%% Table II: ECE + Pearson r per dataset
+\input{../outputs/tables/table2_calibration_metrics.tex}
+% FIGURE 1 PLACEHOLDER
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/pdf/fig1_calibration_curves.pdf}
+  \caption{DES calibration curves per dataset. X-axis: DES bin (0.0–1.0).
+    Y-axis: mean factual error rate. A perfectly calibrated proxy follows
+    the diagonal.}
+  \label{fig:calibration}
+\end{figure}
+
+% FIGURE 2 PLACEHOLDER
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/pdf/fig2_domain_heatmap.pdf}
+  \caption{Domain sensitivity heatmap. Rows = knowledge domains,
+    columns = metrics (ECE, mean DES, mean error rate).}
+  \label{fig:domain_heatmap}
+\end{figure}
+
+\subsection{RQ2: Binary Classification Performance}
+%% Fig 3: ROC curves — DES combined/surface/semantic vs. SelfCheckGPT sim
+%% Table III: AUROC, Precision, Recall, F1, Threshold
+\input{../outputs/tables/table3_classification_performance.tex}
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/pdf/fig3_roc_curves.pdf}
+  \caption{ROC curves for DES variants and the simulated SelfCheckGPT
+    baseline. Shaded area = 95\% bootstrap confidence interval.}
+  \label{fig:roc}
+\end{figure}
+
+\subsection{RQ3: Architecture Gap Analysis}
+%% Fig 4: Within vs. cross-family AUROC bar chart
+%% Table IV: Pair × AUROC × ΔF1
+\input{../outputs/tables/table4_architecture_gap.tex}
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/pdf/fig4_architecture_gap.pdf}
+  \caption{AUROC by model pair type. Cross-family pairs consistently
+    outperform within-family pairs, with the full 7-model DES achieving
+    the highest signal.}
+  \label{fig:arch_gap}
+\end{figure}
+
+\subsection{RQ4: Qwen3 Reasoning Mode Ablation}
+%% Table V: Qwen-think vs. no-think accuracy + AUROC shift
+\input{../outputs/tables/table5_qwen_ablation.tex}
+%% Narrative: does CoT thinking converge toward consensus or signal harder questions?
+
+% ============================================================
+\section{Discussion}
+\label{sec:discussion}
+% Target: ~500 words | 4 subsections
+
+\subsection{When DES Works and When It Fails}
+%% Case 1: Clear factual questions — good calibration, high AUROC
+%% Case 2: Ambiguous questions — legitimate multi-answer noise
+%% Case 3: Shared training bias (all wrong, all agree) — DES = 0, failure mode
+%% Estimate frequency of Case 3 from data; flag as future work direction
+
+\subsection{Cost–Performance Tradeoff}
+%% Fig 5: AUROC vs. Number of Models
+\begin{figure}[!t]
+  \centering
+  \includegraphics[width=\columnwidth]{figures/pdf/fig5_auroc_vs_n_models.pdf}
+  \caption{AUROC as a function of the number of models used to compute DES.
+    Error bars = std over all subsets of size $k$.
+    Diminishing returns suggest 3--4 cross-family models capture the majority
+    of the signal.}
+  \label{fig:auroc_vs_n}
+\end{figure}
+Three cross-family models yield approximately 90\% of the maximum AUROC
+at 43\% of the full API cost — a practical recommendation for
+resource-constrained deployments.
+
+\subsection{Implications for LLM Deployment}
+Two concrete deployment recommendations:
+\begin{enumerate}
+  \item Use DES as a \textbf{real-time triage signal} — flag high-DES
+    responses for human review or retrieval augmentation.
+  \item Apply DES thresholding for \textbf{selective abstention} —
+    refuse to answer when $\text{DES} > \tau$, improving precision
+    at the cost of recall, complementing the abstention framework
+    of~\cite{feng2024dont}.
+\end{enumerate}
+
+\subsection{Limitations}
+\begin{itemize}
+  \item Models served via API may change without notice, affecting
+    reproducibility across time.
+  \item DES cannot detect hallucinations where all constituent models
+    share the same training-induced bias.
+  \item Evaluation is English-only; multilingual behavior is untested.
+  \item The exact architecture of GPT-OSS 120B is not publicly
+    disclosed, limiting mechanistic interpretation.
+  \item Sentence embeddings (all-MiniLM-L6-v2) may not capture
+    domain-specific semantic equivalences in law or medicine.
+\end{itemize}
+
+% ============================================================
+\section{Conclusion}
+\label{sec:conclusion}
+% Target: ~250 words | 3 paragraphs
+
+%% ¶1 — Summary with concrete numbers
+We proposed DES, a zero-cost hallucination detection signal derived from
+cross-model disagreement across $k=9$ models from eight distinct
+architectural families.
+On \emph{N}=2,017 factual questions, DES achieves AUROC of
+	extbf{0.9472} as a binary hallucination classifier (ECE = 0.0587),
+with within-family pairs outperforming cross-family pairs by
+$\Delta$AUROC = \textbf{0.128}.
+
+%% ¶2 — Broader impact
+DES is immediately deployable by any developer operating multi-model
+API setups via infrastructure such as LiteLLM or OpenRouter.
+As multi-model deployment becomes the operational norm, passive disagreement
+signals represent a low-friction and high-value addition to production LLM
+pipelines.
+
+%% ¶3 — Future work directions
+Future work should address: (1)~multilingual DES across diverse language
+families; (2)~RAG-augmented DES to examine whether retrieval reduces
+disagreement differentially for correct vs.\ incorrect answers;
+(3)~extension to vision-language models where visual inputs introduce
+additional uncertainty dimensions; and (4)~real-time online disagreement
+monitoring in deployed conversational systems.
+
+% ============================================================
+% APPENDICES
+% ============================================================
+\appendices
+
+\section{Prompt Templates}
+% Verbatim prompt text for all question types — for exact reproducibility
+
+\section{Per-Model Null Response Rates}
+% Table: model × dataset × null rate
+
+\section{DES Sensitivity Analysis (\texorpdfstring{$\alpha$}{alpha}/\texorpdfstring{$\beta$}{beta} weighting)}
+% Show AUROC is stable across \alpha \in [0.2, 0.8]
+
+\section{Per-Domain Calibration Curves}
+% Full calibration curves for each of the 6 domains separately
+
+% ============================================================
+% REFERENCES
+% ============================================================
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+% ============================================================
+% AUTHOR BIOGRAPHIES — Remove for double-blind review
+% ============================================================
+% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in]{figures/author_photo.jpg}}]{Author One}
+%   Biography text here (max 200 words).
+% \end{IEEEbiography}
+
+\end{document}

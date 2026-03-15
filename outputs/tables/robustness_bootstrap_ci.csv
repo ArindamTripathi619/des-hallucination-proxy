@@ -1,0 +1,13 @@
+Method,Dataset,AUROC,CI_lower,CI_upper
+DES (combined),all,0.9472,0.937,0.9571
+DES (combined),triviaqa,0.9031,0.8811,0.9235
+DES (combined),truthfulqa,0.9995,0.9989,1.0
+DES (combined),mmlu,0.9759,0.9397,0.9992
+DES (surface only),all,0.8943,0.8803,0.9095
+DES (surface only),triviaqa,0.8887,0.866,0.9099
+DES (surface only),truthfulqa,1.0,1.0,1.0
+DES (surface only),mmlu,0.9986,0.9957,1.0
+DES (semantic only),all,0.8855,0.8727,0.8998
+DES (semantic only),triviaqa,0.8776,0.8525,0.9001
+DES (semantic only),truthfulqa,0.9588,0.9429,0.9734
+DES (semantic only),mmlu,0.8154,0.7518,0.8748
