@@ -22,10 +22,10 @@ paper/*.lof
 paper/*.lot
 paper/*.bbl
 paper/*.blg
-paper/*.fdb_latexmk
-paper/*.fls
 paper/*.synctex.gz
+DOCS/*.pdf
 paper/*.pdf
+.tmp/
 # Figures - keep publication ready files
 !paper/figures/pdf/*.pdf
 !paper/figures/png/*.png
