@@ -32,10 +32,22 @@
 \title{Disagreement Entropy as a Zero-Cost Hallucination Proxy:
 A Cross-Architecture Empirical Study Across Diverse LLM Families}
 
-\author{Anonymous Authors\thanks{This work is under double-blind review.}}
+\author{Arindam~Tripathi,
+        Arghya~Bose,
+        Atul~Tejaswi,
+        Akash~Das,
+        Parthiv~Prakash~Dutta,
+        and~Soham~Deb%
+\thanks{Manuscript received [date]. Supervised by Dr.~Sushruta~Mishra,
+Asst.\ Prof., School of Computer Engineering, KIIT University,
+Bhubaneswar, Odisha, India (e-mail: sushruta.mishrafcs@kiit.ac.in).}%
+\thanks{All authors are with the Department of Computer Science,
+Kalinga Institute of Industrial Technology (KIIT), Bhubaneswar,
+Odisha, India. Corresponding author: Arindam Tripathi
+(e-mail: 24155614@kiit.ac.in).}}
 
 \markboth{IEEE Transactions on Artificial Intelligence}%
-         {Anonymous et al.: Disagreement Entropy as a Zero-Cost Hallucination Proxy}
+         {Tripathi et al.: Disagreement Entropy as a Zero-Cost Hallucination Proxy}
 
 % ============================================================
 \begin{document}
@@ -448,8 +460,8 @@ with a maximum of 150 output tokens (2,048 for Qwen3 to accommodate
 chain-of-thought reasoning in its thinking mode).
 All requests are routed through a unified LiteLLM load-balancing proxy
 with 11 rotating API keys to ensure consistent response quality and
-avoid rate-limiting artifacts\footnote{Infrastructure details anonymized
-for double-blind review.}.
+avoid rate-limiting artifacts\footnote{All inference was conducted via Groq's free-tier API with a
+LiteLLM load-balancing proxy.}.
 
 \subsection{Research Questions and Evaluation Protocol}
 
@@ -978,10 +990,10 @@ Section~\ref{sec:results}.
 % ============================================================
 % AUTHOR BIOGRAPHIES --- Remove for double-blind review
 % ============================================================
-% \begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{figures/author_photo.jpg}}]{Arindam Tripathi}
-%   Arindam Tripathi is a researcher at KIIT University, Department of Computer Science.
-%   His research focuses on large language model evaluation, hallucination detection,
-%   and empirical NLP.
-% \end{IEEEbiography}
+\begin{IEEEbiography}[{\includegraphics[width=1in,height=1.25in,clip,keepaspectratio]{figures/author_photo.jpg}}]{Arindam Tripathi}
+  Arindam Tripathi is a researcher at KIIT University, Department of Computer Science.
+  His research focuses on large language model evaluation, hallucination detection,
+  and empirical NLP.
+\end{IEEEbiography}
 
 \end{document}
