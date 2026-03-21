@@ -1,9 +1,4 @@
-% ============================================================
-% IEEE Transactions on Artificial Intelligence (TAI)
-% Paper: "Disagreement Entropy as a Zero-Cost Hallucination Proxy:
-%         A Cross-Architecture Empirical Study Across Diverse LLM Families"
-% Target: IEEE TAI --- Regular Manuscript
-% Format: Two-column IEEE transactions, double-anonymous review
+% Format: Two-column IEEE transactions
 % ============================================================
 \documentclass[journal]{IEEEtran}
 
@@ -38,11 +33,7 @@ A Cross-Architecture Empirical Study Across Diverse LLM Families%
         Atul~Tejaswi,
         Akash~Das,
         Parthiv~Prakash~Dutta,
-        Soham~Deb,
-        and~Sushruta~Mishra%
-\thanks{Dr.~Sushruta~Mishra is an
-Asst.\ Prof., School of Computer Engineering, KIIT University,
-Bhubaneswar, Odisha, India (e-mail: sushruta.mishrafcs@kiit.ac.in).}%
+        and~Soham~Deb%
 \thanks{All authors are with the Department of Computer Science,
 Kalinga Institute of Industrial Technology (KIIT), Bhubaneswar,
 Odisha, India. Corresponding author: Arindam Tripathi
@@ -461,9 +452,8 @@ All models are queried at temperature = 0.0 for deterministic responses,
 with a maximum of 150 output tokens (2,048 for Qwen3 to accommodate
 chain-of-thought reasoning in its thinking mode).
 All requests are routed through a unified LiteLLM load-balancing proxy
-with 11 rotating API keys to ensure consistent response quality and
-avoid rate-limiting artifacts\footnote{All inference was conducted via Groq's free-tier API with a
-LiteLLM load-balancing proxy.}.
+with 11 rotating Groq API keys under a free-tier usage model to ensure
+consistent response quality and avoid rate-limiting artifacts.
 
 \subsection{Research Questions and Evaluation Protocol}
 
@@ -933,7 +923,8 @@ native chat format.
 \label{app:null}
 
 For completeness, per-model null (non-parseable) response rates across
-all datasets are available in the released repository.
+all datasets are available in the project
+repository~\cite{desrepo2025}.
 The overall null rate across all models was below 2\%, with DeepSeek-R1
 exhibiting the highest null rate on MMLU (approximately 4.1\%) due to
 its tendency to produce extended reasoning traces rather than a bare
@@ -983,14 +974,13 @@ on MMLU Math (ECE $\approx$ 0.032) and least calibrated on TriviaQA
 (ECE = 0.085), consistent with the open-ended alias noise discussion in
 Section~\ref{sec:results}.
 
-% ============================================================
-% REFERENCES
-% ============================================================
+
 \bibliographystyle{IEEEtran}
 \bibliography{references}
 
-% ============================================================
-% AUTHOR BIOGRAPHIES --- Remove for double-blind review
-% ============================================================
+\section*{Acknowledgment}
+The authors gratefully acknowledge the supervision and guidance of
+Dr.~Sushruta Mishra, Assistant Professor, School of Computer Engineering,
+KIIT University, Bhubaneswar, Odisha, India.
 
 \end{document}
